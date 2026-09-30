@@ -926,12 +926,16 @@ struct ContentView: View {
         ))
     }
 
-    // NOTCH-FORK: keeps the side-hover monitors installed only while closed and not hovered.
+    // NOTCH-FORK: side-hover monitors stay installed while the notch is closed.
     private func installSideHoverLifecycleHandlers<Content: View>(on view: Content) -> some View {
         view
             .onAppear { syncSideHoverMonitor() }
             .onChange(of: vm.notchState) { _, _ in syncSideHoverMonitor() }
             .onChange(of: isHovering) { _, _ in syncSideHoverMonitor() }
+            .onChange(of: currentScreenName) { _, _ in syncSideHoverMonitor() }
+            .onReceive(NotificationCenter.default.publisher(for: NSApplication.didChangeScreenParametersNotification)) { _ in
+                syncSideHoverMonitor()
+            }
     }
 
     private func installPrimaryRootLifecycleHandlers<Content: View>(on view: Content) -> some View {
@@ -2280,7 +2284,9 @@ struct ContentView: View {
     /// monitors: clicks are never intercepted.
     private func syncSideHoverMonitor() {
         sideHoverScreenFrame = NSScreen.screens.first(where: { $0.localizedName == currentScreenName })?.frame ?? .zero
-        guard vm.notchState == .closed, !isHovering else {
+        // NOTCH-FORK: keep watching while closed, hovered or not, so leaving the
+        // margin can cancel the open timer. The monitor stays off while open.
+        guard vm.notchState == .closed else {
             stopSideHoverMonitor()
             return
         }
@@ -2308,20 +2314,36 @@ struct ContentView: View {
 
     private func handleSideHoverMouseMoved() {
         let location = NSEvent.mouseLocation
-        let band = closedPillSize.height + pillTopOffset
-        // NOTCH-FORK: bail before screen lookup when cursor is below the pill band.
-        guard band > 0,
-              NotchForkLayout.isInsideTopBand(mouseY: location.y, screenMaxY: sideHoverScreenFrame.maxY, bandHeight: band)
-        else { return }
-        guard !isHovering,
-              vm.notchState == .closed,
+        // NOTCH-FORK: a zero cached frame is not a real screen, so it must not
+        // reject every event. While hovered, also skip the band bail so a
+        // cursor that has left both zones still clears hover.
+        if !isHovering, sideHoverScreenFrame != .zero {
+            let band = closedPillSize.height + pillTopOffset
+            guard band > 0,
+                  NotchForkLayout.isInsideTopBand(mouseY: location.y, screenMaxY: sideHoverScreenFrame.maxY, bandHeight: band)
+            else { return }
+        }
+        guard vm.notchState == .closed,
               interactionsEnabled,
               !vm.hideOnClosed,
               !shouldUseHiddenEdgeHoverPolling,
               let pillRect = closedPillScreenRect()
         else { return }
-        if NotchForkLayout.closedHoverRect(pillRect: pillRect).contains(location) {
+        switch NotchForkLayout.sideHoverDecision(
+            pillRect: pillRect,
+            cursor: location,
+            isHovering: isHovering,
+            isClosed: true,
+            inClosedHitArea: isHovering && isMouseOverClosedNotchHitArea(location)
+        ) {
+        case .enter:
             handleHover(true)
+        case .exit:
+            hoverTask?.cancel()
+            stopHoverClickMonitor()
+            finishHoverExit()
+        case .none:
+            break
         }
     }
 
@@ -2510,9 +2532,20 @@ struct ContentView: View {
                     if self.shouldRetainHoverAtScreenTopEdge() {
                         return
                     }
-                    // NOTCH-FORK: the side margin is still the closed hover zone.
-                    if self.vm.notchState == .closed, self.cursorStillInsideClosedHoverRect() {
-                        return
+                    // NOTCH-FORK: while closed, this delay must not freeze hover on.
+                    // Exit only when the cursor is outside both zones; if it is
+                    // still inside, the mouse-moved monitor exits when it leaves.
+                    if self.vm.notchState == .closed, let pillRect = self.closedPillScreenRect() {
+                        let decision = NotchForkLayout.sideHoverDecision(
+                            pillRect: pillRect,
+                            cursor: NSEvent.mouseLocation,
+                            isHovering: self.isHovering,
+                            isClosed: true,
+                            inClosedHitArea: self.isMouseOverClosedNotchHitArea()
+                        )
+                        if decision != .exit {
+                            return
+                        }
                     }
                     self.finishHoverExit()
                 }
@@ -2549,6 +2582,7 @@ struct ContentView: View {
         return isMouseOverClosedNotchHitArea(location)
     }
 
+    // NOTCH-FORK: the side margin still counts as inside the closed hover zone.
     private func cursorStillInsideClosedHoverRect(_ location: NSPoint = NSEvent.mouseLocation) -> Bool {
         guard let pillRect = closedPillScreenRect() else { return false }
         return NotchForkLayout.shouldIgnoreClosedHoverExit(at: location, pillRect: pillRect)
@@ -2580,9 +2614,10 @@ struct ContentView: View {
 
         let insideLegacy = location.x >= minX && location.x <= minX + width
             && location.y >= minY && location.y <= screen.frame.maxY
-        if insideLegacy { return true }
-        guard let pillRect = closedPillScreenRect() else { return false }
-        return NotchForkLayout.shouldIgnoreClosedHoverExit(at: location, pillRect: pillRect)
+        // NOTCH-FORK: legacy width can miss the measured pill's side margin.
+        guard let pillRect = closedPillScreenRect() else { return insideLegacy }
+        let exitRect = CGRect(x: minX, y: minY, width: width, height: height)
+        return insideLegacy || NotchForkLayout.retainsClosedHover(at: location, exitRect: exitRect, pillRect: pillRect)
     }
 
     private func isPointInsideNotchWindow(_ point: CGPoint = NSEvent.mouseLocation) -> Bool {

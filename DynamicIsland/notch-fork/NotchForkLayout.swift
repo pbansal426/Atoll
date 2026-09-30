@@ -17,12 +17,20 @@ enum NotchForkLayout {
         pillRect.insetBy(dx: -sideHoverMargin, dy: 0)
     }
 
+    /// `CGRect.contains` excludes the max edges. Menu-bar clicks land on
+    /// `y == screen.frame.maxY`, so pill clicks and the closed hover rect must
+    /// include that edge. Max X stays excluded.
+    static func containsIncludingMaxY(_ rect: CGRect, point: CGPoint) -> Bool {
+        point.x >= rect.minX && point.x < rect.maxX
+            && point.y >= rect.minY && point.y <= rect.maxY
+    }
+
     static func hoverClickTargetsPill(at location: CGPoint, pillRect: CGRect) -> Bool {
-        pillRect.contains(location)
+        containsIncludingMaxY(pillRect, point: location)
     }
 
     static func shouldIgnoreClosedHoverExit(at location: CGPoint, pillRect: CGRect) -> Bool {
-        closedHoverRect(pillRect: pillRect).contains(location)
+        containsIncludingMaxY(closedHoverRect(pillRect: pillRect), point: location)
     }
 
     static func retainsClosedHover(at location: CGPoint, exitRect: CGRect, pillRect: CGRect) -> Bool {
@@ -35,5 +43,28 @@ enum NotchForkLayout {
 
     static func isInsideTopBand(mouseY: CGFloat, screenMaxY: CGFloat, bandHeight: CGFloat) -> Bool {
         mouseY <= screenMaxY && mouseY >= screenMaxY - bandHeight
+    }
+
+    enum SideHoverDecision: Equatable {
+        case enter
+        case exit
+        case none
+    }
+
+    /// Closed notch only. Enter from the widened hover rect. Once hovering,
+    /// leave only when the cursor is outside that rect and the closed hit area.
+    static func sideHoverDecision(
+        pillRect: CGRect,
+        cursor: CGPoint,
+        isHovering: Bool,
+        isClosed: Bool,
+        inClosedHitArea: Bool
+    ) -> SideHoverDecision {
+        guard isClosed else { return .none }
+        let inHoverRect = shouldIgnoreClosedHoverExit(at: cursor, pillRect: pillRect)
+        if isHovering {
+            return (inHoverRect || inClosedHitArea) ? .none : .exit
+        }
+        return inHoverRect ? .enter : .none
     }
 }
