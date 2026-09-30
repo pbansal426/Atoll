@@ -50,6 +50,7 @@ struct ContentView: View {
     @ObservedObject var statsManager = StatsManager.shared
     @ObservedObject var recordingManager = ScreenRecordingManager.shared
     @ObservedObject var privacyManager = PrivacyIndicatorManager.shared
+    @ObservedObject var fanMonitor = FanMonitor.shared // NOTCH-FORK
     @ObservedObject var doNotDisturbManager = DoNotDisturbManager.shared
     @ObservedObject var lockScreenManager = LockScreenManager.shared
     @ObservedObject private var networkConnectivityManager = NetworkConnectivityManager.shared
@@ -1167,6 +1168,10 @@ struct ContentView: View {
                           )
                       } else if !coordinator.expandingView.show && vm.notchState == .closed && !shelfState.isEmpty && !vm.hideOnClosed && !lockScreenManager.isLocked && !enableMinimalisticUI {
                           ShelfInlineLiveActivity()
+                              .transition(.opacity.animation(.smooth(duration: 0.25)))
+                      // NOTCH-FORK: fan at >= 50% of max; lowest priority, so music and every other activity win.
+                      } else if !isCurrentScreenExpansionVisible && vm.notchState == .closed && fanMonitor.isAlerting && Defaults[.enableFanLiveActivity] && !vm.hideOnClosed && !lockScreenManager.isLocked {
+                          FanLiveActivity()
                               .transition(.opacity.animation(.smooth(duration: 0.25)))
                       } else if !isCurrentScreenExpansionVisible && vm.notchState == .closed && (!musicManager.isPlaying && musicManager.isPlayerIdle) && Defaults[.showNotHumanFace] && !vm.hideOnClosed  {
                           DynamicIslandFaceAnimation().animation(.interactiveSpring, value: musicManager.isPlayerIdle)
