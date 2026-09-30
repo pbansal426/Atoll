@@ -3,7 +3,7 @@
 ## Golden rules
 - Query the graphify graph in graphify-out/ before grepping, if it exists.
 - New/changed behavior ALWAYS ships with tests. Never declare done until the gate passes.
-- Gate: xcodebuild -project DynamicIsland.xcodeproj -scheme DynamicIsland -configuration Debug -destination 'platform=macOS' -derivedDataPath build-test -allowProvisioningUpdates -only-testing:DynamicIslandTests -skip-testing:DynamicIslandTests/ClipboardHistoryPersistenceTests/testLaunchPurgeLeavesStoredHistoryAloneWhenEnabled test -quiet
+- Gate: xcodebuild -project DynamicIsland.xcodeproj -scheme DynamicIsland -configuration Debug -destination 'platform=macOS' -derivedDataPath build-test -allowProvisioningUpdates -only-testing:DynamicIslandTests -skip-testing:DynamicIslandTests/ClipboardHistoryPersistenceTests test -quiet
 - Never touch .env, secrets, or golden-set fixtures without explicit approval.
 - If the gate fails twice on the same root cause, STOP and report the blocker.
 
