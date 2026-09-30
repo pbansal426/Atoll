@@ -47,7 +47,8 @@ struct ContentView: View {
     @ObservedObject var timerManager = TimerManager.shared
     @ObservedObject var reminderManager = ReminderLiveActivityManager.shared
     @ObservedObject var batteryModel = BatteryStatusViewModel.shared
-    @ObservedObject var statsManager = StatsManager.shared
+    // NOTCH-FORK: call-only. Observing would redraw the whole notch on every sample while pinned; the wings observe stats themselves.
+    let statsManager = StatsManager.shared
     @ObservedObject var recordingManager = ScreenRecordingManager.shared
     @ObservedObject var privacyManager = PrivacyIndicatorManager.shared
     // NOTCH-FORK: only the alert flag is observed (not FanMonitor itself) so 2 s reading ticks don't redraw this view.
@@ -190,15 +191,6 @@ struct ContentView: View {
             }
         }
 
-        // NOTCH-FORK: pinned wings widen the closed notch when no live activity is showing.
-        if vm.notchState == .closed && pinnedMode && !vm.hideOnClosed && !lockScreenManager.isLocked
-            && !PinnedLiveActivityGate.isShowing(vm: vm, screenName: currentScreenName, fanAlerting: fanAlerting) {
-            return CGSize(
-                width: vm.closedNotchSize.width + 2 * PinnedLayout.wingWidth,
-                height: vm.effectiveClosedNotchHeight
-            )
-        }
-        
         if coordinator.currentView == .timer {
             return CGSize(width: baseSize.width, height: 250) // Extra height for timer presets
         }
@@ -527,6 +519,12 @@ struct ContentView: View {
             return isBatteryHUDVisibleOnCurrentScreen
         }
         return true
+    }
+
+    /// NOTCH-FORK: the closed-chain condition for pinned wings. Earlier branches still win.
+    /// The window stays at its normal size; the wings draw inside it.
+    private var pinnedWingsVisible: Bool {
+        !isCurrentScreenExpansionVisible && vm.notchState == .closed && pinnedMode && !vm.hideOnClosed && !lockScreenManager.isLocked
     }
 
     private var currentScreenExpansionType: SneakContentType? {
@@ -876,8 +874,8 @@ struct ContentView: View {
                 }
                 syncStickyTerminalOutsideClickMonitor()
             }
-            // NOTCH-FORK: pinned wings need samples while the notch stays closed.
-            .onChange(of: pinnedMode) { _, isPinned in
+            // NOTCH-FORK: pinned wings need samples while the notch stays closed, including after relaunch.
+            .onChange(of: pinnedMode, initial: true) { _, isPinned in
                 let currentViewString = StatsMonitoringPolicy.viewName(for: coordinator.currentView, stripEnabled: Defaults[.showHomeStatsStrip], pinned: isPinned)
                 statsManager.updateMonitoringState(
                     notchIsOpen: vm.notchState == .open || isPinned,
@@ -1230,7 +1228,7 @@ struct ContentView: View {
                           FanLiveActivity()
                               .transition(.opacity.animation(.smooth(duration: 0.25)))
                       // NOTCH-FORK: pinned wings sit below the fan activity, so live activities replace them.
-                      } else if !isCurrentScreenExpansionVisible && vm.notchState == .closed && pinnedMode && !vm.hideOnClosed && !lockScreenManager.isLocked {
+                      } else if pinnedWingsVisible {
                           PinnedStatsView()
                               .transition(.opacity.animation(.smooth(duration: 0.25)))
                       } else if !isCurrentScreenExpansionVisible && vm.notchState == .closed && (!musicManager.isPlaying && musicManager.isPlayerIdle) && Defaults[.showNotHumanFace] && !vm.hideOnClosed  {
