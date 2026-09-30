@@ -65,7 +65,11 @@ final class SmctlStatusModel: ObservableObject {
     static let smctlPath = "/opt/homebrew/bin/smctl"
     static let keeperLogPath = "/Library/Logs/smctl-keeper.log"
 
+    private var isRefreshing = false
+
     func refresh() {
+        guard !isRefreshing else { return }
+        isRefreshing = true
         DispatchQueue.global(qos: .userInitiated).async {
             let fan = Self.run(["fan", "status", "--json"]).flatMap(SmctlStatusParser.fan)
             let power = Self.run(["power", "status", "--json"]).flatMap(SmctlStatusParser.power)
@@ -75,6 +79,7 @@ final class SmctlStatusModel: ObservableObject {
                 self.fan = fan
                 self.power = power
                 self.keeperEvent = event
+                self.isRefreshing = false
             }
         }
     }

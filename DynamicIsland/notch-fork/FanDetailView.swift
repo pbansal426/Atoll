@@ -4,7 +4,6 @@ import Combine
 /// Fan popover: per-fan speed plus smctl profile, thermal, throttling and keeper state.
 struct FanDetailView: View {
     @StateObject private var model = SmctlStatusModel()
-    @ObservedObject private var fans = FanMonitor.shared
 
     private let cardBackground = Color(nsColor: .windowBackgroundColor).opacity(0.65)
 

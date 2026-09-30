@@ -48,21 +48,46 @@ enum StatsMonitoringPolicy {
     }
 }
 
+enum StatsStripItem: Hashable {
+    case cpu, gpu, memory, fan
+}
+
 struct StatsStripView: View {
+    @EnvironmentObject var vm: DynamicIslandViewModel
     @ObservedObject private var stats = StatsManager.shared
     @ObservedObject private var fans = FanMonitor.shared
+    @State private var openItem: StatsStripItem?
 
     var body: some View {
         HStack(spacing: 18) {
-            item("CPU", StatsStripFormatter.percent(stats.cpuUsage), .white)
-            item("GPU", StatsStripFormatter.percent(stats.gpuUsage), .white)
-            item("MEM", StatsStripFormatter.percent(stats.memoryBreakdown.pressure.percent ?? .nan),
-                 color(StatsStripFormatter.ramTint(stats.memoryBreakdown.pressure.level)))
-            item("FAN", StatsStripFormatter.fanPercent(fans.reading), .white)
+            button(.cpu, "CPU", StatsStripFormatter.percent(stats.cpuUsage), .white) {
+                RankedProcessPopover(rankingType: .cpu)
+            }
+            button(.gpu, "GPU", StatsStripFormatter.percent(stats.gpuUsage), .white) {
+                RankedProcessPopover(rankingType: .gpu)
+            }
+            button(.memory, "MEM", StatsStripFormatter.percent(stats.memoryBreakdown.pressure.percent ?? .nan),
+                   color(StatsStripFormatter.ramTint(stats.memoryBreakdown.pressure.level))) {
+                RankedProcessPopover(rankingType: .memory)
+            }
+            button(.fan, "FAN", StatsStripFormatter.fanPercent(fans.reading), .white) {
+                FanDetailView()
+            }
         }
         .font(.system(size: 11, weight: .medium, design: .monospaced))
         .frame(maxWidth: .infinity)
         .frame(height: StatsStripLayout.height)
+        .onChange(of: openItem) { _, item in vm.isStatsPopoverActive = item != nil }
+        .onDisappear { vm.isStatsPopoverActive = false }
+    }
+
+    private func button<Content: View>(_ which: StatsStripItem, _ label: String, _ value: String, _ tint: Color,
+                                       @ViewBuilder popover: @escaping () -> Content) -> some View {
+        Button { openItem = which } label: { item(label, value, tint) }
+            .buttonStyle(.plain)
+            .popover(isPresented: Binding(get: { openItem == which },
+                                          set: { if !$0 { openItem = nil } }),
+                     arrowEdge: .bottom) { popover() }
     }
 
     private func item(_ label: String, _ value: String, _ tint: Color) -> some View {
