@@ -16,4 +16,24 @@ enum NotchForkLayout {
     static func closedHoverRect(pillRect: CGRect) -> CGRect {
         pillRect.insetBy(dx: -sideHoverMargin, dy: 0)
     }
+
+    static func hoverClickTargetsPill(at location: CGPoint, pillRect: CGRect) -> Bool {
+        pillRect.contains(location)
+    }
+
+    static func shouldIgnoreClosedHoverExit(at location: CGPoint, pillRect: CGRect) -> Bool {
+        closedHoverRect(pillRect: pillRect).contains(location)
+    }
+
+    static func retainsClosedHover(at location: CGPoint, exitRect: CGRect, pillRect: CGRect) -> Bool {
+        exitRect.contains(location) || shouldIgnoreClosedHoverExit(at: location, pillRect: pillRect)
+    }
+
+    static func updatedClosedPillSize(current: CGSize, measured: CGSize, isClosed: Bool) -> CGSize {
+        isClosed ? measured : current
+    }
+
+    static func isInsideTopBand(mouseY: CGFloat, screenMaxY: CGFloat, bandHeight: CGFloat) -> Bool {
+        mouseY <= screenMaxY && mouseY >= screenMaxY - bandHeight
+    }
 }

@@ -12,4 +12,45 @@ final class NotchForkLayoutTests: XCTestCase {
         XCTAssertEqual(NotchForkLayout.closedHoverRect(pillRect: pill),
                        CGRect(x: 84, y: 0, width: 217, height: 32))
     }
+
+    func testHoverClickTargetsThePillNotTheSideMargin() {
+        let pill = CGRect(x: 100, y: 900, width: 185, height: 32)
+        XCTAssertFalse(NotchForkLayout.hoverClickTargetsPill(at: CGPoint(x: 90, y: 916), pillRect: pill))
+        XCTAssertTrue(NotchForkLayout.hoverClickTargetsPill(at: CGPoint(x: 150, y: 916), pillRect: pill))
+    }
+
+    func testClosedHoverExitKeepsPointsInsideTheEntryRect() {
+        let pill = CGRect(x: 100, y: 900, width: 185, height: 40)
+        let shortExit = CGRect(x: 84, y: 920, width: 217, height: 20)
+        let point = CGPoint(x: 150, y: 910)
+        XCTAssertFalse(shortExit.contains(point))
+        XCTAssertTrue(NotchForkLayout.retainsClosedHover(at: point, exitRect: shortExit, pillRect: pill))
+        XCTAssertFalse(NotchForkLayout.retainsClosedHover(at: CGPoint(x: 40, y: 910), exitRect: shortExit, pillRect: pill))
+    }
+
+    func testMarginBesideThePillStillCountsAsClosedHover() {
+        let pill = CGRect(x: 100, y: 900, width: 185, height: 32)
+        XCTAssertTrue(NotchForkLayout.shouldIgnoreClosedHoverExit(at: CGPoint(x: 90, y: 916), pillRect: pill))
+        XCTAssertFalse(NotchForkLayout.shouldIgnoreClosedHoverExit(at: CGPoint(x: 150, y: 880), pillRect: pill))
+    }
+
+    func testClosedPillMeasurementIsKeptOnlyWhileClosed() {
+        let current = CGSize(width: 120, height: 22)
+        let measured = CGSize(width: 400, height: 80)
+        XCTAssertEqual(
+            NotchForkLayout.updatedClosedPillSize(current: current, measured: measured, isClosed: false),
+            current
+        )
+        XCTAssertEqual(
+            NotchForkLayout.updatedClosedPillSize(current: current, measured: measured, isClosed: true),
+            measured
+        )
+    }
+
+    func testTopBandRejectsCursorsBelowThePill() {
+        XCTAssertTrue(NotchForkLayout.isInsideTopBand(mouseY: 1070, screenMaxY: 1080, bandHeight: 32))
+        XCTAssertFalse(NotchForkLayout.isInsideTopBand(mouseY: 1000, screenMaxY: 1080, bandHeight: 32))
+        XCTAssertTrue(NotchForkLayout.isInsideTopBand(mouseY: 1080, screenMaxY: 1080, bandHeight: 32))
+        XCTAssertFalse(NotchForkLayout.isInsideTopBand(mouseY: 1080.5, screenMaxY: 1080, bandHeight: 32))
+    }
 }
