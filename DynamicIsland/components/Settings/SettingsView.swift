@@ -8027,6 +8027,14 @@ struct StatsSettings: View {
                     // Note: Smart monitoring will handle starting when switching to stats tab
                 }
 
+                // NOTCH-FORK
+                Defaults.Toggle(key: .showHomeStatsStrip) {
+                    Text("Show stats strip when the notch opens")
+                }
+                Defaults.Toggle(key: .enableFanLiveActivity) {
+                    Text("Show fan activity at 50% of max speed")
+                }
+
                 Defaults.Toggle(key: .enableLLMUsageFeature) {
                     Text("Enable LLM Usage Monitor")
                 }
