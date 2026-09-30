@@ -20,6 +20,11 @@ enum StatsStripFormatter {
         return "\(Int(max(value, 0).rounded())) rpm"
     }
 
+    static func fanPercent(_ reading: FanReading?) -> String {
+        guard let reading else { return "—" }
+        return "\(Int((min(max(reading.fraction, 0), 1) * 100).rounded()))%"
+    }
+
     static func ramTint(_ level: MemoryPressureLevel) -> StatsStripTint {
         switch level {
         case .normal: return .normal
@@ -52,7 +57,7 @@ struct StatsStripView: View {
             item("GPU", StatsStripFormatter.percent(stats.gpuUsage), .white)
             item("RAM", StatsStripFormatter.percent(stats.memoryUsage),
                  color(StatsStripFormatter.ramTint(stats.memoryBreakdown.pressure.level)))
-            item("FAN", StatsStripFormatter.rpm(fans.reading?.rpm), .white)
+            item("FAN", StatsStripFormatter.fanPercent(fans.reading), .white)
         }
         .font(.system(size: 11, weight: .medium, design: .monospaced))
         .frame(maxWidth: .infinity)

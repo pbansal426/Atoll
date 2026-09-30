@@ -7,7 +7,7 @@ struct FanLiveActivity: View {
     @ObservedObject private var fans = FanMonitor.shared
     @State private var isExpanded = false
 
-    private let rightWingWidth: CGFloat = 64
+    private let rightWingWidth: CGFloat = 44
 
     private var wingHeight: CGFloat { max(0, vm.effectiveClosedNotchHeight - 12) }
 
@@ -40,7 +40,7 @@ struct FanLiveActivity: View {
             Color.clear
                 .overlay(alignment: .trailing) {
                     if isExpanded {
-                        Text(StatsStripFormatter.rpm(fans.reading?.rpm))
+                        Text(StatsStripFormatter.fanPercent(fans.reading))
                             .font(.system(size: 11, weight: .semibold, design: .monospaced))
                             .foregroundStyle(.white)
                             .lineLimit(1)

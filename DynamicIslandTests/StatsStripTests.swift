@@ -21,6 +21,14 @@ final class StatsStripTests: XCTestCase {
         XCTAssertEqual(StatsStripFormatter.ramTint(.critical), .critical)
     }
 
+    func testFanPercentIsShareOfMaximum() {
+        XCTAssertEqual(StatsStripFormatter.fanPercent(FanReading(rpm: 3913, maxRPM: 7826)), "50%")
+        XCTAssertEqual(StatsStripFormatter.fanPercent(FanReading(rpm: 2317, maxRPM: 7826)), "30%")
+        XCTAssertEqual(StatsStripFormatter.fanPercent(FanReading(rpm: 0, maxRPM: 7826)), "0%")
+        XCTAssertEqual(StatsStripFormatter.fanPercent(FanReading(rpm: 9000, maxRPM: 7826)), "100%")
+        XCTAssertEqual(StatsStripFormatter.fanPercent(nil), "—")
+    }
+
     func testHomeCountsAsStatsViewOnlyWhenStripEnabled() {
         XCTAssertEqual(StatsMonitoringPolicy.viewName(for: .home, stripEnabled: true), "stats")
         XCTAssertEqual(StatsMonitoringPolicy.viewName(for: .home, stripEnabled: false), "other")
