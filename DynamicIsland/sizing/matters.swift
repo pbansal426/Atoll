@@ -71,7 +71,9 @@ var openNotchSize: CGSize {
     let minWidth = currentRecommendedMinimumNotchWidth()
     let maxWidth = maxAllowedNotchWidth()
     let width = min(max(storedWidth, minWidth, sideLyricsRequiredNotchWidth()), maxWidth)
-    return .init(width: width, height: 200)
+    // NOTCH-FORK: room for the home stats strip (+ its 4pt spacing).
+    let stripHeight: CGFloat = Defaults[.showHomeStatsStrip] ? StatsStripLayout.height + 4 : 0
+    return .init(width: width, height: 200 + stripHeight)
 }
 
 /// Maximum notch width based on the current screen's point width.

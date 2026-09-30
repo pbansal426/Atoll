@@ -916,7 +916,13 @@ struct NotchHomeView: View {
     var body: some View {
         Group {
             if !coordinator.firstLaunch {
-                mainContent
+                // NOTCH-FORK: stats strip under the home content.
+                VStack(spacing: 4) {
+                    mainContent
+                    if Defaults[.showHomeStatsStrip] {
+                        StatsStripView()
+                    }
+                }
                     .onAppear {
                         syncCalendarDeferred()
                     }

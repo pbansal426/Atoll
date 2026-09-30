@@ -763,8 +763,9 @@ struct ContentView: View {
             })
             .onChange(of: vm.notchState) { _, newState in
                 // Update smart monitoring based on notch state
-                if enableStatsFeature {
-                    let currentViewString = coordinator.currentView == .stats ? "stats" : "other"
+                // NOTCH-FORK: the home stats strip also needs live stats.
+                if enableStatsFeature || Defaults[.showHomeStatsStrip] {
+                    let currentViewString = StatsMonitoringPolicy.viewName(for: coordinator.currentView, stripEnabled: Defaults[.showHomeStatsStrip])
                     statsManager.updateMonitoringState(
                         notchIsOpen: newState == .open,
                         currentView: currentViewString
@@ -829,8 +830,9 @@ struct ContentView: View {
                 }
             }
             .onChange(of: coordinator.currentView) { _, newValue in
-                if enableStatsFeature {
-                    let currentViewString = newValue == .stats ? "stats" : "other"
+                // NOTCH-FORK: the home stats strip also needs live stats.
+                if enableStatsFeature || Defaults[.showHomeStatsStrip] {
+                    let currentViewString = StatsMonitoringPolicy.viewName(for: newValue, stripEnabled: Defaults[.showHomeStatsStrip])
                     statsManager.updateMonitoringState(
                         notchIsOpen: vm.notchState == .open,
                         currentView: currentViewString
