@@ -437,6 +437,8 @@ private enum SettingsSearchIndex {
         // NOTCH-FORK: search entries for the stats strip and fan activity toggles.
         SettingsSearchEntry(tab: .stats, title: "Show stats strip", keywords: ["stats", "strip", "cpu", "gpu", "ram", "fan", "home"], highlightID: SettingsTab.stats.highlightID(for: "Show stats strip")),
         SettingsSearchEntry(tab: .stats, title: "Show fan activity", keywords: ["fan", "rpm", "live activity", "speed"], highlightID: SettingsTab.stats.highlightID(for: "Show fan activity")),
+        // NOTCH-FORK: search entry for the pinned slightly-expanded stats mode.
+        SettingsSearchEntry(tab: .stats, title: "Pin stats", keywords: ["pin", "pinned", "cpu", "memory", "clock", "closed notch"], highlightID: SettingsTab.stats.highlightID(for: "Pin stats")),
         SettingsSearchEntry(tab: .stats, title: "Enable LLM Usage Monitor", keywords: ["llm", "usage", "ai", "monitor"], highlightID: SettingsTab.stats.highlightID(for: "Enable LLM Usage Monitor")),
         SettingsSearchEntry(tab: .stats, title: "Claude Provider", keywords: ["llm", "claude", "provider", "toggle"], highlightID: SettingsTab.stats.highlightID(for: "Claude Provider")),
         SettingsSearchEntry(tab: .stats, title: "Codex Provider", keywords: ["llm", "codex", "provider", "toggle"], highlightID: SettingsTab.stats.highlightID(for: "Codex Provider")),
@@ -7978,6 +7980,9 @@ struct StatsSettings: View {
     @ObservedObject var statsManager = StatsManager.shared
     @Default(.enableStatsFeature) var enableStatsFeature
     @Default(.enableLLMUsageFeature) var enableLLMUsageFeature
+    // NOTCH-FORK: which stat each closed-notch wing shows.
+    @Default(.pinnedLeft) var pinnedLeft
+    @Default(.pinnedRight) var pinnedRight
     @Default(.enableNewAPIProvider) var enableNewAPIProvider
     @Default(.statsStopWhenNotchCloses) var statsStopWhenNotchCloses
     @Default(.statsUpdateInterval) var statsUpdateInterval
@@ -8039,6 +8044,19 @@ struct StatsSettings: View {
                     Text("Show fan activity at 50% of max speed")
                 }
                 .settingsHighlight(id: highlightID("Show fan activity"))
+
+                // NOTCH-FORK: pinned slightly-expanded stats mode.
+                Defaults.Toggle(key: .pinnedMode) {
+                    Text("Pin stats beside the closed notch")
+                }
+                .settingsHighlight(id: highlightID("Pin stats"))
+                Picker("Left", selection: $pinnedLeft) {
+                    ForEach(PinnedValue.allCases) { Text($0.title).tag($0) }
+                }
+                Picker("Right", selection: $pinnedRight) {
+                    ForEach(PinnedValue.allCases) { Text($0.title).tag($0) }
+                }
+                KeyboardShortcuts.Recorder("Toggle pinned stats:", name: .togglePinnedStats)
 
                 Defaults.Toggle(key: .enableLLMUsageFeature) {
                     Text("Enable LLM Usage Monitor")

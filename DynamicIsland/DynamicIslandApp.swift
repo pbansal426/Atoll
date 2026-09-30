@@ -559,6 +559,20 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 return addShadowPadding(to: CGSize(width: width, height: height), isMinimalistic: Defaults[.enableMinimalisticUI])
             }
         }
+
+        // NOTCH-FORK: pinned wings widen the closed notch when no live activity is showing.
+        if vm.notchState == .closed && Defaults[.pinnedMode] && !vm.hideOnClosed && !LockScreenManager.shared.isLocked
+            && !PinnedLiveActivityGate.isShowing(
+                vm: vm,
+                screenName: vm.screen ?? coordinator.selectedScreen,
+                fanAlerting: FanMonitor.shared.isAlerting
+            ) {
+            let size = CGSize(
+                width: vm.closedNotchSize.width + 2 * PinnedLayout.wingWidth,
+                height: vm.effectiveClosedNotchHeight
+            )
+            return addShadowPadding(to: size, isMinimalistic: Defaults[.enableMinimalisticUI])
+        }
         
         // Use minimalistic or normal size based on settings
         var baseSize = Defaults[.enableMinimalisticUI] ? minimalisticOpenNotchSize(isDynamicIslandMode: shouldUseDynamicIslandMode(for: vm.screen)) : openNotchSize
@@ -878,6 +892,36 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             self?.debouncedUpdateWindowSize()
         }.store(in: &cancellables)
 
+        // NOTCH-FORK: pinned wings change the closed window width. Music and the fan
+        // activity replace those wings, so the window has to follow them too.
+        Defaults.publisher(.pinnedMode, options: []).sink { [weak self] _ in
+            self?.debouncedUpdateWindowSize()
+        }.store(in: &cancellables)
+        MusicManager.shared.$isPlaying
+            .removeDuplicates()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                guard Defaults[.pinnedMode] else { return }
+                self?.debouncedUpdateWindowSize()
+            }
+            .store(in: &cancellables)
+        MusicManager.shared.$isPlayerIdle
+            .removeDuplicates()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                guard Defaults[.pinnedMode] else { return }
+                self?.debouncedUpdateWindowSize()
+            }
+            .store(in: &cancellables)
+        FanMonitor.shared.$isAlerting
+            .removeDuplicates()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                guard Defaults[.pinnedMode] else { return }
+                self?.debouncedUpdateWindowSize()
+            }
+            .store(in: &cancellables)
+
         MemoryUsageMonitor.shared.startMonitoring()
         // NOTCH-FORK: fan sampling for the stats strip and fan live activity.
         FanMonitor.shared.start()
@@ -1043,6 +1087,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 type: .music,
                 duration: 3.0
             )
+        }
+
+        // NOTCH-FORK: toggle the pinned slightly-expanded stats mode.
+        KeyboardShortcuts.onKeyDown(for: .togglePinnedStats) {
+            Defaults[.pinnedMode].toggle()
         }
 
         KeyboardShortcuts.onKeyDown(for: .toggleNotchOpen) { [weak self] in

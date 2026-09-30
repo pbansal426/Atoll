@@ -3,8 +3,8 @@ import Defaults
 import Foundation
 
 /// Samples the fans on a timer and publishes the fastest one plus whether the
-/// fan live activity should show. Runs whenever the strip or the activity is
-/// enabled; an SMC read every couple of seconds is negligible.
+/// fan live activity should show. Runs whenever the strip, the activity, or
+/// pinned wings are enabled; an SMC read every couple of seconds is negligible.
 final class FanMonitor: ObservableObject {
     static let shared = FanMonitor(reader: SMCFanReader(), policy: FanAlertPolicy(), interval: 2)
 
@@ -25,7 +25,7 @@ final class FanMonitor: ObservableObject {
 
     /// Starts sampling while either consumer is enabled, and follows the settings.
     func start() {
-        Defaults.publisher(keys: .showHomeStatsStrip, .enableFanLiveActivity, options: [.initial])
+        Defaults.publisher(keys: .showHomeStatsStrip, .enableFanLiveActivity, .pinnedMode, options: [.initial])
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in self?.syncTimer() }
             .store(in: &cancellables)
@@ -45,7 +45,7 @@ final class FanMonitor: ObservableObject {
     }
 
     private func syncTimer() {
-        let needed = Defaults[.showHomeStatsStrip] || Defaults[.enableFanLiveActivity]
+        let needed = Defaults[.showHomeStatsStrip] || Defaults[.enableFanLiveActivity] || Defaults[.pinnedMode]
         if needed, timer == nil {
             tick()
             let timer = Timer(timeInterval: interval, repeats: true) { [weak self] _ in self?.tick() }

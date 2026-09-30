@@ -47,6 +47,8 @@ struct DynamicIslandHeader: View {
     @Default(.showBatteryPercentInside) var showBatteryPercentInside
     @Default(.showMinimalisticBatteryIndicator) var showMinimalisticBatteryIndicator
     @Default(.enableMinimalisticUI) var enableMinimalisticUI
+    // NOTCH-FORK: pin button for the slightly-expanded stats wings.
+    @Default(.pinnedMode) private var pinnedMode
     
     /// Point size per symbol, so the row reads as one size.
     ///
@@ -116,6 +118,19 @@ struct DynamicIslandHeader: View {
             // of this size.
             HStack(spacing: 8) {
                 if vm.notchState == .open && !enableMinimalisticUI {
+                    // NOTCH-FORK: pin toggles the slightly-expanded stats wings.
+                    Button {
+                        Defaults[.pinnedMode].toggle()
+                    } label: {
+                        Capsule()
+                            .fill(.black)
+                            .frame(width: 30, height: 30)
+                            .overlay {
+                                headerGlyph(pinnedMode ? "pin.fill" : "pin")
+                            }
+                    }
+                    .buttonStyle(PlainButtonStyle())
+
                     if Defaults[.showMirror] {
                         Button(action: {
                             vm.toggleCameraPreview()

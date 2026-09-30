@@ -53,6 +53,8 @@ struct ContentView: View {
     // NOTCH-FORK: only the alert flag is observed (not FanMonitor itself) so 2 s reading ticks don't redraw this view.
     @State private var fanAlerting = false
     @Default(.enableFanLiveActivity) private var enableFanLiveActivity
+    // NOTCH-FORK: closed-notch wings, one pinned stat on each side.
+    @Default(.pinnedMode) private var pinnedMode
     @ObservedObject var doNotDisturbManager = DoNotDisturbManager.shared
     @ObservedObject var lockScreenManager = LockScreenManager.shared
     @ObservedObject private var networkConnectivityManager = NetworkConnectivityManager.shared
@@ -186,6 +188,15 @@ struct ContentView: View {
                 
                 return CGSize(width: width, height: height)
             }
+        }
+
+        // NOTCH-FORK: pinned wings widen the closed notch when no live activity is showing.
+        if vm.notchState == .closed && pinnedMode && !vm.hideOnClosed && !lockScreenManager.isLocked
+            && !PinnedLiveActivityGate.isShowing(vm: vm, screenName: currentScreenName, fanAlerting: fanAlerting) {
+            return CGSize(
+                width: vm.closedNotchSize.width + 2 * PinnedLayout.wingWidth,
+                height: vm.effectiveClosedNotchHeight
+            )
         }
         
         if coordinator.currentView == .timer {
@@ -786,11 +797,11 @@ struct ContentView: View {
             })
             .onChange(of: vm.notchState) { _, newState in
                 // Update smart monitoring based on notch state
-                // NOTCH-FORK: the home stats strip also needs live stats.
-                if enableStatsFeature || Defaults[.showHomeStatsStrip] {
-                    let currentViewString = StatsMonitoringPolicy.viewName(for: coordinator.currentView, stripEnabled: Defaults[.showHomeStatsStrip])
+                // NOTCH-FORK: the home stats strip and pinned wings also need live stats.
+                if enableStatsFeature || Defaults[.showHomeStatsStrip] || pinnedMode {
+                    let currentViewString = StatsMonitoringPolicy.viewName(for: coordinator.currentView, stripEnabled: Defaults[.showHomeStatsStrip], pinned: pinnedMode)
                     statsManager.updateMonitoringState(
-                        notchIsOpen: newState == .open,
+                        notchIsOpen: vm.notchState == .open || pinnedMode,
                         currentView: currentViewString
                     )
                 }
@@ -855,15 +866,23 @@ struct ContentView: View {
                 }
             }
             .onChange(of: coordinator.currentView) { _, newValue in
-                // NOTCH-FORK: the home stats strip also needs live stats.
-                if enableStatsFeature || Defaults[.showHomeStatsStrip] {
-                    let currentViewString = StatsMonitoringPolicy.viewName(for: newValue, stripEnabled: Defaults[.showHomeStatsStrip])
+                // NOTCH-FORK: the home stats strip and pinned wings also need live stats.
+                if enableStatsFeature || Defaults[.showHomeStatsStrip] || pinnedMode {
+                    let currentViewString = StatsMonitoringPolicy.viewName(for: newValue, stripEnabled: Defaults[.showHomeStatsStrip], pinned: pinnedMode)
                     statsManager.updateMonitoringState(
-                        notchIsOpen: vm.notchState == .open,
+                        notchIsOpen: vm.notchState == .open || pinnedMode,
                         currentView: currentViewString
                     )
                 }
                 syncStickyTerminalOutsideClickMonitor()
+            }
+            // NOTCH-FORK: pinned wings need samples while the notch stays closed.
+            .onChange(of: pinnedMode) { _, isPinned in
+                let currentViewString = StatsMonitoringPolicy.viewName(for: coordinator.currentView, stripEnabled: Defaults[.showHomeStatsStrip], pinned: isPinned)
+                statsManager.updateMonitoringState(
+                    notchIsOpen: vm.notchState == .open || isPinned,
+                    currentView: currentViewString
+                )
             }
             .sensoryFeedback(.alignment, trigger: haptics)
             .contextMenu {
@@ -1202,9 +1221,13 @@ struct ContentView: View {
                       } else if !coordinator.expandingView.show && vm.notchState == .closed && !shelfState.isEmpty && !vm.hideOnClosed && !lockScreenManager.isLocked && !enableMinimalisticUI {
                           ShelfInlineLiveActivity()
                               .transition(.opacity.animation(.smooth(duration: 0.25)))
-                      // NOTCH-FORK: fan at >= 50% of max; lowest priority, so music and every other activity win.
+                      // NOTCH-FORK: fan at >= 50% of max; below every other activity, above pinned wings.
                       } else if !isCurrentScreenExpansionVisible && vm.notchState == .closed && fanAlerting && enableFanLiveActivity && !vm.hideOnClosed && !lockScreenManager.isLocked {
                           FanLiveActivity()
+                              .transition(.opacity.animation(.smooth(duration: 0.25)))
+                      // NOTCH-FORK: pinned wings sit below the fan activity, so live activities replace them.
+                      } else if !isCurrentScreenExpansionVisible && vm.notchState == .closed && pinnedMode && !vm.hideOnClosed && !lockScreenManager.isLocked {
+                          PinnedStatsView()
                               .transition(.opacity.animation(.smooth(duration: 0.25)))
                       } else if !isCurrentScreenExpansionVisible && vm.notchState == .closed && (!musicManager.isPlaying && musicManager.isPlayerIdle) && Defaults[.showNotHumanFace] && !vm.hideOnClosed  {
                           DynamicIslandFaceAnimation().animation(.interactiveSpring, value: musicManager.isPlayerIdle)

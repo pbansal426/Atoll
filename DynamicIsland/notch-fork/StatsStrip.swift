@@ -37,9 +37,10 @@ enum StatsStripFormatter {
 
 /// StatsManager only samples while it believes the stats tab is showing. The
 /// strip needs the same numbers on the home view, so home counts as "stats"
-/// whenever the strip is on.
+/// whenever the strip is on. Pinned wings need them on every view.
 enum StatsMonitoringPolicy {
-    static func viewName(for view: NotchViews, stripEnabled: Bool) -> String {
+    static func viewName(for view: NotchViews, stripEnabled: Bool, pinned: Bool) -> String {
+        if pinned { return "stats" }
         switch view {
         case .stats: return "stats"
         case .home: return stripEnabled ? "stats" : "other"

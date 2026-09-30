@@ -36,9 +36,9 @@ final class StatsStripTests: XCTestCase {
     }
 
     func testHomeCountsAsStatsViewOnlyWhenStripEnabled() {
-        XCTAssertEqual(StatsMonitoringPolicy.viewName(for: .home, stripEnabled: true), "stats")
-        XCTAssertEqual(StatsMonitoringPolicy.viewName(for: .home, stripEnabled: false), "other")
-        XCTAssertEqual(StatsMonitoringPolicy.viewName(for: .stats, stripEnabled: false), "stats")
-        XCTAssertEqual(StatsMonitoringPolicy.viewName(for: .shelf, stripEnabled: true), "other")
+        XCTAssertEqual(StatsMonitoringPolicy.viewName(for: .home, stripEnabled: true, pinned: false), "stats")
+        XCTAssertEqual(StatsMonitoringPolicy.viewName(for: .home, stripEnabled: false, pinned: false), "other")
+        XCTAssertEqual(StatsMonitoringPolicy.viewName(for: .stats, stripEnabled: false, pinned: false), "stats")
+        XCTAssertEqual(StatsMonitoringPolicy.viewName(for: .shelf, stripEnabled: true, pinned: false), "other")
     }
 }
