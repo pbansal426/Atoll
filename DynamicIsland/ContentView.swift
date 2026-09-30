@@ -251,6 +251,11 @@ struct ContentView: View {
     @State private var hoverClickLocalMonitor: Any?
     @State private var stickyTerminalClickMonitor: Any?
     @State private var hiddenEdgeHoverPollingTask: Task<Void, Never>?
+    // NOTCH-FORK: side-approach hover. Measured pill size + mouse-moved monitors
+    // (hover-only; see syncSideHoverMonitor).
+    @State private var closedPillSize: CGSize = .zero
+    @State private var sideHoverGlobalMonitor: Any?
+    @State private var sideHoverLocalMonitor: Any?
     @State private var isHoveringClosedMusicWaveformControl: Bool = false
 
     @State private var gestureProgress: CGFloat = .zero
@@ -665,6 +670,14 @@ struct ContentView: View {
             .padding([.horizontal, .bottom], vm.notchState == .open ? 12 : 0)
             .background(.black)
             .clipShape(resolvedClipShape)
+            // NOTCH-FORK: measure the visible pill for the side-hover rect.
+            .background {
+                GeometryReader { geo in
+                    Color.clear
+                        .onAppear { closedPillSize = geo.size }
+                        .onChange(of: geo.size) { _, size in closedPillSize = size }
+                }
+            }
             // Keep the anti-gap fill outside the clipped notch. The window sits
             // this far above screen.maxY, so placing the spacer after clipShape
             // leaves the notch's top corners anchored to the visible screen edge.
@@ -881,9 +894,18 @@ struct ContentView: View {
     }
 
     private func installRootLifecycleHandlers<Content: View>(on view: Content) -> some View {
-        installSecondaryRootLifecycleHandlers(
+        // NOTCH-FORK: side-hover monitor lifecycle wraps the stock handlers.
+        installSideHoverLifecycleHandlers(on: installSecondaryRootLifecycleHandlers(
             on: installPrimaryRootLifecycleHandlers(on: view)
-        )
+        ))
+    }
+
+    // NOTCH-FORK: keeps the side-hover monitors installed only while closed and not hovered.
+    private func installSideHoverLifecycleHandlers<Content: View>(on view: Content) -> some View {
+        view
+            .onAppear { syncSideHoverMonitor() }
+            .onChange(of: vm.notchState) { _, _ in syncSideHoverMonitor() }
+            .onChange(of: isHovering) { _, _ in syncSideHoverMonitor() }
     }
 
     private func installPrimaryRootLifecycleHandlers<Content: View>(on view: Content) -> some View {
@@ -2142,7 +2164,7 @@ struct ContentView: View {
             return false
         }
 
-        let horizontalPadding: CGFloat = 8
+        let horizontalPadding: CGFloat = NotchForkLayout.sideHoverMargin // NOTCH-FORK: was 8
         let activationWidth = vm.closedNotchSize.width + horizontalPadding * 2
         let activationHeight = max(vm.closedNotchSize.height + zeroHeightHoverPadding, 14)
 
@@ -2167,6 +2189,7 @@ struct ContentView: View {
         stopHoverClickMonitor()
         removeStickyTerminalClickMonitor()
         stopHiddenEdgeHoverPolling()
+        stopSideHoverMonitor() // NOTCH-FORK
         cancelMusicControlWindowSync()
         hideMusicControlWindow()
         cancelMusicControlVisibilityTimer()
@@ -2216,6 +2239,69 @@ struct ContentView: View {
     private func stopHiddenEdgeHoverPolling() {
         hiddenEdgeHoverPollingTask?.cancel()
         hiddenEdgeHoverPollingTask = nil
+    }
+
+    // MARK: - NOTCH-FORK: side-approach hover
+
+    /// The window's transparent sides pass mouse events through (that is what
+    /// keeps menu-bar items next to the notch clickable), so SwiftUI `.onHover`
+    /// can't see a cursor there. Instead, watch mouse-moved events and enter hover
+    /// when the cursor is within `sideHoverMargin` of the pill. Observe-only
+    /// monitors: clicks are never intercepted.
+    private func syncSideHoverMonitor() {
+        guard vm.notchState == .closed, !isHovering else {
+            stopSideHoverMonitor()
+            return
+        }
+        guard sideHoverGlobalMonitor == nil, sideHoverLocalMonitor == nil else { return }
+
+        sideHoverGlobalMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.mouseMoved]) { _ in
+            MainActor.assumeIsolated { handleSideHoverMouseMoved() }
+        }
+        sideHoverLocalMonitor = NSEvent.addLocalMonitorForEvents(matching: [.mouseMoved]) { event in
+            MainActor.assumeIsolated { handleSideHoverMouseMoved() }
+            return event
+        }
+    }
+
+    private func stopSideHoverMonitor() {
+        if let sideHoverGlobalMonitor {
+            NSEvent.removeMonitor(sideHoverGlobalMonitor)
+            self.sideHoverGlobalMonitor = nil
+        }
+        if let sideHoverLocalMonitor {
+            NSEvent.removeMonitor(sideHoverLocalMonitor)
+            self.sideHoverLocalMonitor = nil
+        }
+    }
+
+    private func handleSideHoverMouseMoved() {
+        guard !isHovering,
+              vm.notchState == .closed,
+              interactionsEnabled,
+              !vm.hideOnClosed,
+              !shouldUseHiddenEdgeHoverPolling,
+              let pillRect = closedPillScreenRect()
+        else { return }
+        if NotchForkLayout.closedHoverRect(pillRect: pillRect).contains(NSEvent.mouseLocation) {
+            handleHover(true)
+        }
+    }
+
+    /// The visible pill in screen coordinates on this view model's screen: centred
+    /// (plus the same menu-bar clearance shift the content is drawn with) and hung
+    /// from the top edge, including the island's top gap so the corner counts too.
+    private func closedPillScreenRect() -> CGRect? {
+        guard closedPillSize.width > 0,
+              let screen = NSScreen.screens.first(where: { $0.localizedName == currentScreenName })
+        else { return nil }
+        let height = closedPillSize.height + pillTopOffset
+        return CGRect(
+            x: screen.frame.midX - closedPillSize.width / 2 + menuBarClearanceOffset,
+            y: screen.frame.maxY - height,
+            width: closedPillSize.width,
+            height: height
+        )
     }
 
     private func startHoverClickMonitor() {
@@ -2429,7 +2515,12 @@ struct ContentView: View {
         let height = max(closedHeight, recordingSize?.height ?? 0) + 6
             + PinnedLyricsView.reservedHeight(isEligible: pinnedLyricsVisible,
                 availability: musicManager.lyricsAvailability, context: pinnedLyricContext)
-        let width = max(closedWidth, recordingSize?.width ?? 0) + 24
+        // NOTCH-FORK: + both side-hover margins (and never narrower than the
+        // measured pill's hover rect) so the exit poll keeps a side entry alive.
+        let width = max(
+            max(closedWidth, recordingSize?.width ?? 0) + 24 + NotchForkLayout.sideHoverMargin * 2,
+            NotchForkLayout.closedHoverWidth(contentWidth: closedPillSize.width)
+        )
         // Same shift the content is drawn with, so the hit area stays under it.
         let minX = screen.frame.midX - width / 2 + menuBarClearanceOffset
         let minY = screen.frame.maxY - height
