@@ -166,3 +166,4 @@ walkthrough.md
 TemporaryAssets/
 *.profraw
 build-check/
+build-test/

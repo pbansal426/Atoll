@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+set -e
+echo "Running gate before commit..."
+xcodebuild -project DynamicIsland.xcodeproj -scheme DynamicIsland -configuration Debug -destination 'platform=macOS' -derivedDataPath build-test -allowProvisioningUpdates -only-testing:DynamicIslandTests -skip-testing:DynamicIslandTests/ClipboardHistoryPersistenceTests/testLaunchPurgeLeavesStoredHistoryAloneWhenEnabled test -quiet
