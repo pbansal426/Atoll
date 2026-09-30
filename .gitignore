@@ -139,6 +139,8 @@ referenceimages
 PrivateWorks
 
 *.py
+# NOTCH-FORK: track our test-registration helper
+!scripts/notch-register-test.py
 !tests/test_privacy_configuration.py
 !tests/test_timer_lifecycle.py
 *.sh
