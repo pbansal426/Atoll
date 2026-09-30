@@ -874,6 +874,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }.store(in: &cancellables)
 
         MemoryUsageMonitor.shared.startMonitoring()
+        // NOTCH-FORK: fan sampling for the stats strip and fan live activity.
+        FanMonitor.shared.start()
 
         ReminderLiveActivityManager.shared.$activeWindowReminders
             .receive(on: RunLoop.main)
