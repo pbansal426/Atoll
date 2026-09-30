@@ -43,7 +43,6 @@ internal enum SMCDataType: String {
 internal enum SMCKeys: UInt8 {
     case kernelIndex = 2
     case readBytes = 5
-    case writeBytes = 6
     case readIndex = 8
     case readKeyInfo = 9
     case readPLimit = 11
@@ -343,19 +342,7 @@ public class SMC {
         return list
     }
     
-    public func write(_ key: String, _ newValue: Int) -> kern_return_t {
-        var value = SMCVal_t(key)
-        value.dataSize = 2
-        value.bytes = [UInt8(newValue >> 6), UInt8((newValue << 2) ^ ((newValue >> 6) << 8)), UInt8(0), UInt8(0), UInt8(0), UInt8(0),
-                       UInt8(0), UInt8(0), UInt8(0), UInt8(0), UInt8(0), UInt8(0),
-                       UInt8(0), UInt8(0), UInt8(0), UInt8(0), UInt8(0), UInt8(0),
-                       UInt8(0), UInt8(0), UInt8(0), UInt8(0), UInt8(0), UInt8(0),
-                       UInt8(0), UInt8(0), UInt8(0), UInt8(0), UInt8(0), UInt8(0),
-                       UInt8(0), UInt8(0)]
-        
-        return write(value)
-    }
-    
+    // NOTCH-FORK: SMC write functions removed; this fork only reads SMC (smctl owns the fans).
     // MARK: - internal functions
     
     private func read(_ value: UnsafeMutablePointer<SMCVal_t>) -> kern_return_t {
@@ -382,28 +369,6 @@ public class SMC {
         }
         
         memcpy(&value.pointee.bytes, &output.bytes, Int(value.pointee.dataSize))
-        
-        return kIOReturnSuccess
-    }
-    
-    private func write(_ value: SMCVal_t) -> kern_return_t {
-        var input = SMCKeyData_t()
-        var output = SMCKeyData_t()
-        
-        input.key = FourCharCode(fromString: value.key)
-        input.data8 = SMCKeys.writeBytes.rawValue
-        input.keyInfo.dataSize = IOByteCount32(value.dataSize)
-        input.bytes = (value.bytes[0], value.bytes[1], value.bytes[2], value.bytes[3], value.bytes[4], value.bytes[5],
-                       value.bytes[6], value.bytes[7], value.bytes[8], value.bytes[9], value.bytes[10], value.bytes[11],
-                       value.bytes[12], value.bytes[13], value.bytes[14], value.bytes[15], value.bytes[16], value.bytes[17],
-                       value.bytes[18], value.bytes[19], value.bytes[20], value.bytes[21], value.bytes[22], value.bytes[23],
-                       value.bytes[24], value.bytes[25], value.bytes[26], value.bytes[27], value.bytes[28], value.bytes[29],
-                       value.bytes[30], value.bytes[31])
-        
-        let result = self.call(SMCKeys.kernelIndex.rawValue, input: &input, output: &output)
-        if result != kIOReturnSuccess {
-            return result
-        }
         
         return kIOReturnSuccess
     }

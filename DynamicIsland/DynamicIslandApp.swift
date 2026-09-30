@@ -36,9 +36,7 @@ struct DynamicNotchApp: App {
     private let updaterDelegate = AtollUpdaterDelegate()
 
     init() {
-        // Skip Sparkle's launch-time update check during UI testing.
-        // The AtollUpdaterDelegate overrides the feed URL at runtime
-        // based on the user's selected update channel.
+        // The updater is never started in this fork, so Sparkle never checks for or installs updates.
         // NOTCH-FORK: never auto-update; upstream releases would replace this fork.
         updaterController = SPUStandardUpdaterController(
             startingUpdater: false,
