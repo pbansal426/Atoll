@@ -92,8 +92,9 @@ enum MemoryPressureLevel: String, Equatable {
 struct MemoryPressure: Equatable {
     let rawValue: Int
     let level: MemoryPressureLevel
-    
-    static let unknown = MemoryPressure(rawValue: 0, level: .normal)
+    let percent: Double?
+
+    static let unknown = MemoryPressure(rawValue: 0, level: .normal, percent: nil)
 }
 
 struct CPUCoreUsage: Identifiable, Equatable {
@@ -912,7 +913,13 @@ class StatsManager: ObservableObject {
         default:
             pressureLevel = .normal
         }
-        let pressure = MemoryPressure(rawValue: Int(pressureLevelRaw), level: pressureLevel)
+
+        // NOTCH-FORK: memory pressure % for the stats strip (100 − memory free %).
+        var freeLevelRaw: Int32 = 0
+        var freeLevelSize = MemoryLayout<Int32>.size
+        let freeLevel: Int? = sysctlbyname("kern.memorystatus_level", &freeLevelRaw, &freeLevelSize, nil, 0) == 0 ? Int(freeLevelRaw) : nil
+
+        let pressure = MemoryPressure(rawValue: Int(pressureLevelRaw), level: pressureLevel, percent: MemoryPressureMath.percent(freeLevel: freeLevel))
         
         var swapUsage = xsw_usage()
         var swapSize = MemoryLayout<xsw_usage>.size

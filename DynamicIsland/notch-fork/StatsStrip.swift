@@ -56,7 +56,7 @@ struct StatsStripView: View {
         HStack(spacing: 18) {
             item("CPU", StatsStripFormatter.percent(stats.cpuUsage), .white)
             item("GPU", StatsStripFormatter.percent(stats.gpuUsage), .white)
-            item("RAM", StatsStripFormatter.percent(stats.memoryUsage),
+            item("MEM", StatsStripFormatter.percent(stats.memoryBreakdown.pressure.percent ?? .nan),
                  color(StatsStripFormatter.ramTint(stats.memoryBreakdown.pressure.level)))
             item("FAN", StatsStripFormatter.fanPercent(fans.reading), .white)
         }
