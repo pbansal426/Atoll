@@ -211,7 +211,9 @@ public class SMC {
         }
         
         if val.dataSize > 0 {
-            if val.bytes.first(where: { $0 != 0 }) == nil && val.key != "FS! " && val.key != "F0Md" && val.key != "F1Md" {
+            // NOTCH-FORK: a fan actual-RPM key (F{n}Ac) legitimately reads 0.0 (all-zero bytes) at idle; keep it as 0, not nil. Read-only.
+            let isFanActualRPMKey = val.key.hasPrefix("F") && val.key.hasSuffix("Ac")
+            if val.bytes.first(where: { $0 != 0 }) == nil && val.key != "FS! " && val.key != "F0Md" && val.key != "F1Md" && !isFanActualRPMKey {
                 return nil
             }
             

@@ -12,16 +12,17 @@ enum StatsStripLayout {
 enum StatsStripFormatter {
     /// StatsManager publishes usage as 0–100.
     static func percent(_ value: Double) -> String {
-        "\(Int(min(max(value, 0), 100).rounded()))%"
+        guard value.isFinite else { return "—" }
+        return "\(Int(min(max(value, 0), 100).rounded()))%"
     }
 
     static func rpm(_ value: Double?) -> String {
-        guard let value else { return "—" }
+        guard let value, value.isFinite else { return "—" }
         return "\(Int(max(value, 0).rounded())) rpm"
     }
 
     static func fanPercent(_ reading: FanReading?) -> String {
-        guard let reading else { return "—" }
+        guard let reading, reading.fraction.isFinite else { return "—" }
         return "\(Int((min(max(reading.fraction, 0), 1) * 100).rounded()))%"
     }
 

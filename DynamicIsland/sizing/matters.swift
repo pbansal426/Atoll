@@ -71,9 +71,7 @@ var openNotchSize: CGSize {
     let minWidth = currentRecommendedMinimumNotchWidth()
     let maxWidth = maxAllowedNotchWidth()
     let width = min(max(storedWidth, minWidth, sideLyricsRequiredNotchWidth()), maxWidth)
-    // NOTCH-FORK: room for the home stats strip (+ its 4pt spacing).
-    let stripHeight: CGFloat = Defaults[.showHomeStatsStrip] ? StatsStripLayout.height + 4 : 0
-    return .init(width: width, height: 200 + stripHeight)
+    return .init(width: width, height: 200)
 }
 
 /// Maximum notch width based on the current screen's point width.
@@ -266,6 +264,13 @@ func inlineLyricsAdjustedNotchSize(
     from baseSize: CGSize,
     isHomeTabActive: Bool
 ) -> CGSize {
+    var adjustedSize = baseSize
+
+    // NOTCH-FORK: room for the home stats strip (+ its 4pt spacing); home tab, standard (non-minimalistic) UI only.
+    if isHomeTabActive, !Defaults[.enableMinimalisticUI], Defaults[.showHomeStatsStrip] {
+        adjustedSize.height += StatsStripLayout.height + 4
+    }
+
     // The same conditions `sideLyricsRequiredNotchWidth` tests, for the same
     // reason: the extra line belongs to the standard player, so it is only
     // owed when that player is on screen to draw it. Without the last two the
@@ -278,10 +283,9 @@ func inlineLyricsAdjustedNotchSize(
           Defaults[.showStandardMediaControls],
           (!Defaults[.autoHideInactiveNotchMediaPlayer] || MusicManager.shared.hasActiveSession)
     else {
-        return baseSize
+        return adjustedSize
     }
 
-    var adjustedSize = baseSize
     adjustedSize.height += inlineLyricsLineHeight
     return adjustedSize
 }

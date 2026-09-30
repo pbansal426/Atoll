@@ -50,7 +50,9 @@ struct ContentView: View {
     @ObservedObject var statsManager = StatsManager.shared
     @ObservedObject var recordingManager = ScreenRecordingManager.shared
     @ObservedObject var privacyManager = PrivacyIndicatorManager.shared
-    @ObservedObject var fanMonitor = FanMonitor.shared // NOTCH-FORK
+    // NOTCH-FORK: only the alert flag is observed (not FanMonitor itself) so 2 s reading ticks don't redraw this view.
+    @State private var fanAlerting = false
+    @Default(.enableFanLiveActivity) private var enableFanLiveActivity
     @ObservedObject var doNotDisturbManager = DoNotDisturbManager.shared
     @ObservedObject var lockScreenManager = LockScreenManager.shared
     @ObservedObject private var networkConnectivityManager = NetworkConnectivityManager.shared
@@ -813,6 +815,8 @@ struct ContentView: View {
                     }
                 }
             }
+            // NOTCH-FORK: mirror the fan alert flag without observing every reading tick.
+            .onReceive(FanMonitor.shared.$isAlerting.removeDuplicates()) { fanAlerting = $0 }
             .onReceive(NotificationCenter.default.publisher(for: .sharingDidFinish)) { _ in
                 runAfter(0.1) {
                     if vm.notchState == .open && !isHovering && !shouldPreventAutoClose() {
@@ -1170,7 +1174,7 @@ struct ContentView: View {
                           ShelfInlineLiveActivity()
                               .transition(.opacity.animation(.smooth(duration: 0.25)))
                       // NOTCH-FORK: fan at >= 50% of max; lowest priority, so music and every other activity win.
-                      } else if !isCurrentScreenExpansionVisible && vm.notchState == .closed && fanMonitor.isAlerting && Defaults[.enableFanLiveActivity] && !vm.hideOnClosed && !lockScreenManager.isLocked {
+                      } else if !isCurrentScreenExpansionVisible && vm.notchState == .closed && fanAlerting && enableFanLiveActivity && !vm.hideOnClosed && !lockScreenManager.isLocked {
                           FanLiveActivity()
                               .transition(.opacity.animation(.smooth(duration: 0.25)))
                       } else if !isCurrentScreenExpansionVisible && vm.notchState == .closed && (!musicManager.isPlaying && musicManager.isPlayerIdle) && Defaults[.showNotHumanFace] && !vm.hideOnClosed  {

@@ -900,6 +900,9 @@ struct NotchHomeView: View {
     @Default(.enableLyrics) private var enableLyrics
     @Default(.lyricsPanelWidth) private var lyricsPanelWidth
     @Default(.lyricsPanelOffset) private var lyricsPanelOffset
+    // NOTCH-FORK: read as properties so the strip re-renders live when toggled.
+    @Default(.showHomeStatsStrip) private var showHomeStatsStrip
+    @Default(.enableMinimalisticUI) private var enableMinimalisticUI
     @State private var showCalendarDeferred = false
     @State private var calendarSyncGeneration = 0
     let albumArtNamespace: Namespace.ID
@@ -919,7 +922,7 @@ struct NotchHomeView: View {
                 // NOTCH-FORK: stats strip under the home content.
                 VStack(spacing: 4) {
                     mainContent
-                    if Defaults[.showHomeStatsStrip] {
+                    if showHomeStatsStrip && !enableMinimalisticUI {
                         StatsStripView()
                     }
                 }

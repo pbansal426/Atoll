@@ -56,6 +56,7 @@ final class FanMonitor: ObservableObject {
             timer = nil
             reading = nil
             isAlerting = false
+            stateMachine = FanAlertStateMachine(policy: stateMachine.policy)
         }
     }
 }

@@ -2,6 +2,12 @@ import XCTest
 @testable import Atoll
 
 final class StatsStripTests: XCTestCase {
+    func testNonFiniteValuesShowDash() {
+        XCTAssertEqual(StatsStripFormatter.percent(.nan), "—")
+        XCTAssertEqual(StatsStripFormatter.rpm(.infinity), "—")
+        XCTAssertEqual(StatsStripFormatter.fanPercent(FanReading(rpm: .nan, maxRPM: 7826)), "—")
+    }
+
     func testPercentRoundsAndClamps() {
         XCTAssertEqual(StatsStripFormatter.percent(12.4), "12%")
         XCTAssertEqual(StatsStripFormatter.percent(12.5), "13%")

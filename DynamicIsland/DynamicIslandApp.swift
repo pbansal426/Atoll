@@ -873,6 +873,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             self?.debouncedUpdateWindowSize()
         }.store(in: &cancellables)
 
+        // NOTCH-FORK: toggling the home stats strip changes the open notch height.
+        Defaults.publisher(.showHomeStatsStrip, options: []).sink { [weak self] _ in
+            self?.debouncedUpdateWindowSize()
+        }.store(in: &cancellables)
+
         MemoryUsageMonitor.shared.startMonitoring()
         // NOTCH-FORK: fan sampling for the stats strip and fan live activity.
         FanMonitor.shared.start()

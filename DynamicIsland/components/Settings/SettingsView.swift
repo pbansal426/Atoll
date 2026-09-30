@@ -434,6 +434,9 @@ private enum SettingsSearchIndex {
 
         // Stats
         SettingsSearchEntry(tab: .stats, title: "Enable system stats monitoring", keywords: ["stats", "monitoring"], highlightID: SettingsTab.stats.highlightID(for: "Enable system stats monitoring")),
+        // NOTCH-FORK: search entries for the stats strip and fan activity toggles.
+        SettingsSearchEntry(tab: .stats, title: "Show stats strip", keywords: ["stats", "strip", "cpu", "gpu", "ram", "fan", "home"], highlightID: SettingsTab.stats.highlightID(for: "Show stats strip")),
+        SettingsSearchEntry(tab: .stats, title: "Show fan activity", keywords: ["fan", "rpm", "live activity", "speed"], highlightID: SettingsTab.stats.highlightID(for: "Show fan activity")),
         SettingsSearchEntry(tab: .stats, title: "Enable LLM Usage Monitor", keywords: ["llm", "usage", "ai", "monitor"], highlightID: SettingsTab.stats.highlightID(for: "Enable LLM Usage Monitor")),
         SettingsSearchEntry(tab: .stats, title: "Claude Provider", keywords: ["llm", "claude", "provider", "toggle"], highlightID: SettingsTab.stats.highlightID(for: "Claude Provider")),
         SettingsSearchEntry(tab: .stats, title: "Codex Provider", keywords: ["llm", "codex", "provider", "toggle"], highlightID: SettingsTab.stats.highlightID(for: "Codex Provider")),
@@ -8027,13 +8030,15 @@ struct StatsSettings: View {
                     // Note: Smart monitoring will handle starting when switching to stats tab
                 }
 
-                // NOTCH-FORK
+                // NOTCH-FORK:
                 Defaults.Toggle(key: .showHomeStatsStrip) {
                     Text("Show stats strip when the notch opens")
                 }
+                .settingsHighlight(id: highlightID("Show stats strip"))
                 Defaults.Toggle(key: .enableFanLiveActivity) {
                     Text("Show fan activity at 50% of max speed")
                 }
+                .settingsHighlight(id: highlightID("Show fan activity"))
 
                 Defaults.Toggle(key: .enableLLMUsageFeature) {
                     Text("Enable LLM Usage Monitor")
